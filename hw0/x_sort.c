@@ -9,8 +9,17 @@
 // Side Effect: The input array is sorted from least to greatest
 void sort(int *arr, int len)
 {
-	printf("hello\n") ;
-	return;
+	for (int j = 0; j < len; ++j) {
+		int max = 0, maxIndex = 0;
+		for (int i = 0; i < len - j; ++i) {
+			if (arr[i] > max) {
+				max = arr[i];
+				maxIndex = i;
+			}
+		}
+		arr[maxIndex] = arr[len - 1];
+		arr[len - 1] = max;
+	}
 }
 
 /* END YOUR WORK */
