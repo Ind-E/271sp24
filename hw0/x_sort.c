@@ -21,6 +21,19 @@ void sort(int *arr, int len)
         arr[maxIndex] = arr[len - j - 1];
         arr[len - j - 1] = temp;
     }
+void sort(int *arr, int len)
+{
+	for (int j = 0; j < len; ++j) {
+		int max = 0, maxIndex = 0;
+		for (int i = 0; i < len - j; ++i) {
+			if (arr[i] > max) {
+				max = arr[i];
+				maxIndex = i;
+			}
+		}
+		arr[maxIndex] = arr[len - 1];
+		arr[len - 1] = max;
+	}
 }
 
 /* END YOUR WORK */
