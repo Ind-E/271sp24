@@ -4,53 +4,22 @@
 
 /* YOUR WORK HERE */
 
-// Input: An array of integers, its length, and the digit to sort
-// Output: Nothing
-// Side Effect: The input array is sorted from least to greatest based on that digit
-void countSort(int arr[], int len, int exp)
-{
-    // Output array
-    int output[len];
-    int i, count[10] = { 0 };
- 
-    // Store count of occurrences
-    // in count[]
-    for (i = 0; i < len; i++)
-        count[(arr[i] / exp) % 10]++;
- 
-    // Change count[i] so that count[i]
-    // now contains actual position
-    // of this digit in output[]
-    for (i = 1; i < 10; i++)
-        count[i] += count[i - 1];
- 
-    // Build the output array
-    for (i = len - 1; i >= 0; i--) {
-        output[count[(arr[i] / exp) % 10] - 1] = arr[i];
-        count[(arr[i] / exp) % 10]--;
-    }
- 
-    // Copy the output array to arr[], so that arr[] now contains sorted numbers according to current digit
-    for (i = 0; i < len; i++)
-        arr[i] = output[i];
-}
-
 // Input: An array of integers and its length
 // Output: Nothing
 // Side Effect: The input array is sorted from least to greatest
-void sort(int *arr, int len) {
-	int max = arr[0];
-	for (int i = 0; i < len; i++) {
-		if (arr[i] > max) // if (((max + (~arr[i] + 1)) >> 31) & 1)
-			max = arr[i];
+void sort(int *arr, int len)
+{
+	for (int j = 0; j < len; ++j) {
+		int max = 0, maxIndex = 0;
+		for (int i = 0; i < len - j; ++i) {
+			if (arr[i] > max) {
+				max = arr[i];
+				maxIndex = i;
+			}
+		}
+		arr[maxIndex] = arr[len - 1];
+		arr[len - 1] = max;
 	}
- 
-    // Do counting sort for every digit.
-    // Note that instead of passing digit
-    // number, exp is passed. exp is 10^i
-    // where i is current digit number
-    for (int exp = 1; max / exp > 0; exp *= 10)
-        countSort(arr, len, exp);
 }
 
 /* END YOUR WORK */
