@@ -4,6 +4,15 @@
 
 /* YOUR WORK HERE */
 
+void printArray(int *arr, int len)
+{
+    for (int i = 0; i < len; i++)
+    {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
+}
+
 // Input: An array of integers and its length
 // Output: Nothing
 // Side Effect: The input array is sorted from least to greatest
@@ -52,7 +61,7 @@ int is_sorted(int *arr, int len)
 int main()
 {
     int test_arr[10] = {8, 6, 4, 2, 0, 1, 3, 5, 7, 9};
-    sort(test_arr, 10);
+    mergeSort(test_arr, 0, 9);
     if (is_sorted(test_arr, 10))
     {
         printf("Good job!\n");
@@ -61,5 +70,6 @@ int main()
     {
         printf("Keep it up!\n");
     }
+    printArray(test_arr, 10);
     return 0;
 }

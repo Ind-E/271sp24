@@ -1,7 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <complex.h>
- 
+#include <math.h>
+
 // rip from https://rosettacode.org/wiki/Bitmap/Write_a_PPM_file#C
 // try "convert x.ppm x.png" and follow the install instructions to get a png
 
@@ -9,7 +10,17 @@
 // Hint - how many times should loop? How many times should you call malloc?
 unsigned char ***create_base(int size)
 {
-	return NULL;
+	unsigned char ***arr = malloc(size * sizeof(unsigned char **));
+	for (int i = 0; i < size; i++)
+	{
+		unsigned char **cur_row = malloc(size * sizeof(unsigned char *));
+		for (int j = 0; j < size; j++)
+		{
+			cur_row[j] = malloc(3 * sizeof(unsigned char));
+		}
+		arr[i] = cur_row;
+	}
+	return arr;
 }
 
 // Calculate z_(n+1) = z_n^2 + c and return the result
@@ -18,17 +29,20 @@ unsigned char ***create_base(int size)
 // Hint - don't use exponentiation
 double complex m_seq(double complex z_n, double complex c)
 {
-	double a = 0, b = 0;
-	double complex r = a + b * I;
-	return r;
+	return z_n * z_n + c;
 }
 
 // in C we accept a complex value and an integer size and two integer pointers, and populate the integer points with the x and y results
 // I've included sample code to zero out x and y.
 void c2b(double complex c, int size, int *x, int *y)
 {
-	*x = 0;
-	*y = 0;
+	*x = (int)((creal(c) + 2.0) * ((double)size / 4.0));
+	*y = (int)((cimag(c) + 2.0) * ((double)size / 4.0));
+
+	*x = (*x > size - 1) ? size - 1 : *x;
+	*y = (*y > size - 1) ? size - 1 : *y;
+	*x = (*x < 0) ? 0 : *x;
+	*y = (*y < 0) ? 0 : *y;
 	return;
 }
 
@@ -37,7 +51,7 @@ void c2b(double complex c, int size, int *x, int *y)
 // I've included sample code to work with complex values.
 double complex b2c(int size, int x, int y)
 {
-	double a = 0, b = 0;
+	double a = x * 4.0 / size - 2.0, b = y * 4.0 / size - 2.0;
 	double complex r = a + b * I;
 	return r;
 }
@@ -46,18 +60,55 @@ double complex b2c(int size, int x, int y)
 // I included the absolute value sample code
 int escapes(double complex c, int iters)
 {
-	return abs(c) > 2;
+	double complex z_n = c;
+	for (int i = 0; i < iters; i++)
+	{
+		z_n = m_seq(z_n, c);
+		if (abs(z_n) > 2)
+			return 1;
+	}
+	return 0;
 }
 
 // in C, we accept a 3d array base, an integer for size and for iterations, a color channel of 0,1,2, and a complex value c
 void one_val(unsigned char ***base, int size, int iters, int color, double complex c)
 {
+	if (escapes(c, iters) == 0)
+	{
+		return;
+	}
+	double complex z_n = c;
+	for (int i = 0; i < iters; i++)
+	{
+		if (abs(z_n) > 2)
+			return;
+		int x = 0, y = 0;
+		c2b(z_n, size, &x, &y);
+		x = (x > size - 1) ? size - 1 : x;
+		y = (y > size - 1) ? size - 1 : y;
+		int v = base[x][y][color];
+		v += 25;
+		if (v > 255)
+			v = 255;
+		base[x][y][color] = v;
+		z_n = m_seq(z_n, c);
+	}
 	return;
 }
 
 // in C, we accept a 3d array base, an integer for size and for iterations
 void get_colors(unsigned char ***base, int size, int iters)
 {
+	for (int x = 0; x < size; x++)
+	{
+		for (int y = 0; y < size; y++)
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				one_val(base, size, iters * pow(10, i), i, b2c(size, x, y));
+			}
+		}
+	}
 	return;
 }
 
@@ -70,34 +121,43 @@ void equalize(unsigned char ***base, int size)
 {
 	return;
 }
- 
+
 // Given an edge size and starting iteration count, make a buddhabrot.
 // I'm leaving the ppm code
 void make_brot(int size, int iters)
 {
-
 	FILE *fp = fopen("brot.ppm", "wb"); /* b - binary mode */
 	fprintf(fp, "P6\n%d %d\n255\n", size, size);
-	static unsigned char color[3];
 
 	fflush(stdout);
-	for ( int x = 0 ; x < size ; x++ )
+
+	unsigned char ***base = create_base(size);
+	get_colors(base, size, iters);
+
+	for (int x = 0; x < size; x++)
 	{
-		for ( int y = 0 ; y < size ; y++ )
+		for (int y = 0; y < size; y++)
 		{
-			color[0] = 0;  /* red */
-			color[1] = 0;  /* green */
-			color[2] = 0;  /* blue */
-			fwrite(color, 1, 3, fp);
+			fwrite(base[x][y], 1, 3, fp);
 		}
 	}
 	fclose(fp);
+
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < size; j++)
+		{
+			free(base[i][j]);
+		}
+		free(base[i]);
+	}
+	free(base);
+
 	return;
 }
 
- 
 int main()
 {
-	//make_brot(4000,50);
+	make_brot(2000, 60);
 	return 0;
 }
