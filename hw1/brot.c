@@ -101,16 +101,29 @@ void one_val(unsigned char ***base, int size, int iters, int color, double compl
 }
 
 // in C, we accept a 3d array base, an integer for size and for iterations
+#include <math.h>
+
+#define PI 3.14159265
+
 void get_colors(unsigned char ***base, int size, int iters)
 {
+	double frequencyIncrement = 0.000018 * (750.0 / size); // Adjust frequency increment based on size
+
 	for (int x = 0; x < size; x++)
 	{
+		double frequency = frequencyIncrement * x;
 		for (int y = 0; y < size; y++)
 		{
 			for (int i = 0; i < 3; i++)
 			{
-				one_val(base, size, iters * pow(10, i), i, b2c(size, x, y));
+				int center = 128;
+				int amplitude = 127;
+				int phase = 2 * PI * i / 3; // phase shift for R, G, B
+				int color = sin(frequency * iters + phase) * amplitude + center;
+
+				one_val(base, size, color, i, b2c(size, x, y));
 			}
+			frequency += frequencyIncrement;
 		}
 	}
 	return;
@@ -198,7 +211,7 @@ void contrast_stretching(unsigned char ***base, int size)
 // Sigmoid function
 double sigmoid(double x)
 {
-	return 1 / (1 + exp(-1024 * x));
+	return 1 / (1 + exp(-8 * x));
 }
 
 // Sigmoid scaling
@@ -234,7 +247,7 @@ void darker(unsigned char ***base, int size)
 			{
 				for (int y = -1; y <= 1; y++)
 				{
-					if (base[i + x][j + y][0] == 0 && base[i + x][j + y][1] == 0 && base[i + x][j + y][2] == 0)
+					if (base[i + x][j + y][0] <= 14 && base[i + x][j + y][1] <= 14 && base[i + x][j + y][2] <= 14)
 					{
 						black_neighbors++;
 					}
@@ -279,9 +292,9 @@ void make_brot(int size, int iters)
 
 	unsigned char ***base = create_base(size);
 	get_colors(base, size, iters);
-	// sigmoid_scale(base, size);
-	// contrast_stretching(base, size);
-	// darker(base, size);
+	sigmoid_scale(base, size);
+	contrast_stretching(base, size);
+	darker(base, size);
 
 	for (int x = 0; x < size; x++)
 	{
@@ -291,22 +304,11 @@ void make_brot(int size, int iters)
 		}
 	}
 	fclose(fp);
-
-	for (int i = 0; i < size; i++)
-	{
-		for (int j = 0; j < size; j++)
-		{
-			free(base[i][j]);
-		}
-		free(base[i]);
-	}
-	free(base);
-
 	return;
 }
 
 int main()
 {
-	make_brot(600, 10);
+	make_brot(4000, 4000);
 	return 0;
 }
