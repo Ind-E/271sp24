@@ -17,6 +17,10 @@ unsigned char ***create_base(int size)
 		for (int j = 0; j < size; j++)
 		{
 			cur_row[j] = malloc(3 * sizeof(unsigned char));
+			for (int k = 0; k < 3; k++)
+			{
+				cur_row[j][k] = 0;
+			}
 		}
 		arr[i] = cur_row;
 	}
@@ -87,7 +91,7 @@ void one_val(unsigned char ***base, int size, int iters, int color, double compl
 		x = (x > size - 1) ? size - 1 : x;
 		y = (y > size - 1) ? size - 1 : y;
 		int v = base[x][y][color];
-		v += 25;
+		v += 20;
 		if (v > 255)
 			v = 255;
 		base[x][y][color] = v;
@@ -119,7 +123,149 @@ void get_colors(unsigned char ***base, int size, int iters)
 // You equalized images in CS 151 ImageShop.
 void equalize(unsigned char ***base, int size)
 {
-	return;
+	int hist[256] = {0};
+	int remap[256] = {0};
+	int total_pixels = size * size;
+
+	// Calculate histogram
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < size; j++)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				hist[base[i][j][k]]++;
+			}
+		}
+	}
+
+	// Calculate cumulative distribution
+	for (int i = 1; i < 256; i++)
+	{
+		hist[i] += hist[i - 1];
+	}
+
+	// Calculate remapping values
+	for (int i = 0; i < 256; i++)
+	{
+		remap[i] = (hist[i] * 255) / total_pixels;
+	}
+
+	// Apply remapping to image
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < size; j++)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				base[i][j][k] = remap[base[i][j][k]];
+			}
+		}
+	}
+}
+
+void contrast_stretching(unsigned char ***base, int size)
+{
+	unsigned char min = 255, max = 0;
+
+	// Find the min and max pixel values
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < size; j++)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				if (base[i][j][k] < min)
+					min = base[i][j][k];
+				if (base[i][j][k] > max)
+					max = base[i][j][k];
+			}
+		}
+	}
+
+	// Apply contrast stretching
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < size; j++)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				base[i][j][k] = (unsigned char)(((base[i][j][k] - min) * 255) / (max - min));
+			}
+		}
+	}
+}
+// Sigmoid function
+double sigmoid(double x)
+{
+	return 1 / (1 + exp(-1024 * x));
+}
+
+// Sigmoid scaling
+void sigmoid_scale(unsigned char ***base, int size)
+{
+	for (int i = 0; i < size; i++)
+	{
+		for (int j = 0; j < size; j++)
+		{
+			for (int k = 0; k < 3; k++)
+			{
+				// Normalize pixel values to range [-1, 1]
+				double normalized = (double)base[i][j][k] / 127.5 - 1;
+
+				// Apply sigmoid function and scale back to [0, 255]
+				base[i][j][k] = (unsigned char)((sigmoid(normalized) + 1) * 127.5);
+			}
+		}
+	}
+}
+
+void darker(unsigned char ***base, int size)
+{
+	unsigned char ***temp = create_base(size);
+
+	for (int i = 1; i < size - 1; i++)
+	{
+		for (int j = 1; j < size - 1; j++)
+		{
+			int black_neighbors = 0;
+
+			for (int x = -1; x <= 1; x++)
+			{
+				for (int y = -1; y <= 1; y++)
+				{
+					if (base[i + x][j + y][0] == 0 && base[i + x][j + y][1] == 0 && base[i + x][j + y][2] == 0)
+					{
+						black_neighbors++;
+					}
+				}
+			}
+
+			if (black_neighbors >= 6)
+			{
+				temp[i][j][0] = 0;
+				temp[i][j][1] = 0;
+				temp[i][j][2] = 0;
+			}
+			else
+			{
+				temp[i][j][0] = base[i][j][0];
+				temp[i][j][1] = base[i][j][1];
+				temp[i][j][2] = base[i][j][2];
+			}
+		}
+	}
+
+	// Copy the modified pixels back to the original base
+	for (int i = 1; i < size - 1; i++)
+	{
+		for (int j = 1; j < size - 1; j++)
+		{
+			base[i][j][0] = temp[i][j][0];
+			base[i][j][1] = temp[i][j][1];
+			base[i][j][2] = temp[i][j][2];
+		}
+	}
 }
 
 // Given an edge size and starting iteration count, make a buddhabrot.
@@ -133,6 +279,9 @@ void make_brot(int size, int iters)
 
 	unsigned char ***base = create_base(size);
 	get_colors(base, size, iters);
+	// sigmoid_scale(base, size);
+	// contrast_stretching(base, size);
+	// darker(base, size);
 
 	for (int x = 0; x < size; x++)
 	{
@@ -158,6 +307,6 @@ void make_brot(int size, int iters)
 
 int main()
 {
-	make_brot(2000, 60);
+	make_brot(600, 10);
 	return 0;
 }
