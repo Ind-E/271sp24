@@ -105,7 +105,7 @@ void one_val(unsigned char ***base, int size, int iters, int color, double compl
 
 #define PI 3.14159265
 
-void get_colors(unsigned char ***base, int size, int iters)
+void get_rainbow_colors(unsigned char ***base, int size, int iters)
 {
 	double frequencyIncrement = 0.000018 * (750.0 / size); // Adjust frequency increment based on size
 
@@ -124,6 +124,22 @@ void get_colors(unsigned char ***base, int size, int iters)
 				one_val(base, size, color, i, b2c(size, x, y));
 			}
 			frequency += frequencyIncrement;
+		}
+	}
+	return;
+}
+
+// non-rainbow version
+void get_colors(unsigned char ***base, int size, int iters)
+{
+	for (int x = 0; x < size; x++)
+	{
+		for (int y = 0; y < size; y++)
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				one_val(base, size, iters * pow(10, i), i, b2c(size, x, y));
+			}
 		}
 	}
 	return;
@@ -291,7 +307,7 @@ void make_brot(int size, int iters)
 	fflush(stdout);
 
 	unsigned char ***base = create_base(size);
-	get_colors(base, size, iters);
+	get_rainbow_colors(base, size, iters);
 	sigmoid_scale(base, size);
 	contrast_stretching(base, size);
 	darker(base, size);
@@ -309,6 +325,6 @@ void make_brot(int size, int iters)
 
 int main()
 {
-	make_brot(4000, 4000);
+	make_brot(4000, 1000);
 	return 0;
 }
