@@ -68,7 +68,7 @@ int escapes(double complex c, int iters)
 	for (int i = 0; i < iters; i++)
 	{
 		z_n = m_seq(z_n, c);
-		if (abs(z_n) > 2)
+		if (cabs(z_n) > 2)
 			return 1;
 	}
 	return 0;
@@ -84,7 +84,7 @@ void one_val(unsigned char ***base, int size, int iters, int color, double compl
 	double complex z_n = c;
 	for (int i = 0; i < iters; i++)
 	{
-		if (abs(z_n) > 2)
+		if (cabs(z_n) > 2)
 			return;
 		int x = 0, y = 0;
 		c2b(z_n, size, &x, &y);
@@ -101,7 +101,6 @@ void one_val(unsigned char ***base, int size, int iters, int color, double compl
 }
 
 // in C, we accept a 3d array base, an integer for size and for iterations
-#include <math.h>
 
 #define PI 3.14159265
 
@@ -249,7 +248,7 @@ void sigmoid_scale(unsigned char ***base, int size)
 	}
 }
 
-void darker(unsigned char ***base, int size)
+void darken(unsigned char ***base, int size)
 {
 	unsigned char ***temp = create_base(size);
 
@@ -310,7 +309,7 @@ void make_brot(int size, int iters)
 	get_rainbow_colors(base, size, iters);
 	sigmoid_scale(base, size);
 	contrast_stretching(base, size);
-	darker(base, size);
+	darken(base, size);
 
 	for (int x = 0; x < size; x++)
 	{
@@ -325,6 +324,6 @@ void make_brot(int size, int iters)
 
 int main()
 {
-	make_brot(4000, 1000);
+	make_brot(4000, 100);
 	return 0;
 }
