@@ -1,0 +1,25 @@
+I got lost in all the color changes stuff which was mostly relevant to me because I hard a hard time knowing what size/iter to feed to exercise all of the code. Obviously it's all correct though and well done. I had minimal comments, below.
+
+I don't remember how many points of extra credit I said I would give for what, but you would get all of them.
+
+100+/100
+
+Well done!
+
+
+58c58
+< 	double a = (double)x * 4.0 / (double)size - 2.0, b = (double)y * 4.0 / (double)size - 2.0; // it's not a huge issue, but i do like casts here
+---
+> 	double a = x * 4.0 / size - 2.0, b = y * 4.0 / size - 2.0;
+105c105
+< #define PI 3.14159265 // Can we really call it pi if its an approximation?
+---
+> #define PI 3.14159265
+154c154
+< 	int hist[256] = {0}; // this doesn't always zero everything - i dont understand the corner cases exactly
+---
+> 	int hist[256] = {0};
+327c327
+< 	make_brot(1000, 10);
+---
+> 	make_brot(4000, 100);
