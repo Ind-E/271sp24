@@ -42,16 +42,18 @@
 //     return 1;
 // }
 
-// // The special main function
-
 #include <stdio.h>
-#include <stdlib.h>
-
 int main()
 {
-    fprintf(stderr, "error");
-    fprintf(stdout, "out");
-    return 0;
+    unsigned char x = 255;
+    if (x > 255)
+    {
+        #include <stdio.h>
 
-    fopen("img.ppm", "wb"); // wb = write binary, use on windows
+        printf("x is greater than 255");
+    }
+    else
+    {
+        printf("x is less than 255");
+    }
 }

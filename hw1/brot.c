@@ -88,8 +88,8 @@ void one_val(unsigned char ***base, int size, int iters, int color, double compl
 			return;
 		int x = 0, y = 0;
 		c2b(z_n, size, &x, &y);
-		x = (x > size - 1) ? size - 1 : x;
-		y = (y > size - 1) ? size - 1 : y;
+		// x = (x > size - 1) ? size - 1 : x;
+		// y = (y > size - 1) ? size - 1 : y;
 		int v = base[x][y][color];
 		v += 20;
 		if (v > 255)
@@ -306,7 +306,7 @@ void make_brot(int size, int iters)
 	fflush(stdout);
 
 	unsigned char ***base = create_base(size);
-	get_rainbow_colors(base, size, iters);
+	get_colors(base, size, iters);
 	sigmoid_scale(base, size);
 	contrast_stretching(base, size);
 	darken(base, size);
