@@ -127,7 +127,7 @@ struct sockaddr_in6 addr;
 
 addr.sin6family = DOMAIN;
 addr.sin6port = htons(PORT);
-SERVER: addr.sin6addr = in6addr_any;
+SERVER: addr.sin6_addr = in6addr_any;
 CLIENT: inet_pton(DOMAIN, "::1", &addr.sin6addr);
 
 if (bind(sock, add4, s))
