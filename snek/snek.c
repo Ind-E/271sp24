@@ -2,17 +2,13 @@
 #include <arpa/inet.h>  // for add6
 #include <sys/types.h>
 #include <netinet/in.h>
-#include <stdio.h>  // for printf()
-#include <unistd.h> // for read()
-#include <stdlib.h> // for malloc()
-#include <string.h> // for strlen()
-#include <time.h>   // for time()
-#include <fcntl.h>
-#include <asm-generic/socket.h>
-#include <pthread.h>
-#include <termios.h>
-#include <wchar.h>
-#include <locale.h>
+#include <stdio.h>   // for printf()
+#include <unistd.h>  // for read()
+#include <stdlib.h>  // for malloc()
+#include <string.h>  // for strlen()
+#include <time.h>    // for time()
+#include <pthread.h> // for threads
+#include <termios.h> // for terminal input mode
 
 #define DOMAIN AF_INET6
 
@@ -42,7 +38,7 @@ typedef int bool;
 #define LEFT 'a'
 #define RITE 'd'
 
-#define SPEED 100000
+#define SPEED 125000 // in nanoseconds
 
 struct sockaddr_in6 address;
 
@@ -67,7 +63,7 @@ node append_head(node head, int x, int y)
     if (new_head == NULL)
     {
         perror("Failed to allocate memory for append");
-        exit(1);
+        exit(-1);
     }
     new_head->x = x;
     new_head->y = y;
@@ -112,11 +108,6 @@ int isin(node snek, int x, int y)
     return FALS;
 }
 
-// ╔═╗
-// ║ ║ 🍎
-// ╚═╝
-//    ⯀⯀⯀⯀⯀
-//
 int randdir()
 {
     int randomNum = rand() % 4;
@@ -135,7 +126,7 @@ int randdir()
     }
 }
 
-void randsnake(game_state state)
+void init_snake(game_state state)
 {
     int x = rand() % ((int)(WIDE * 0.75) - (int)(WIDE * 0.25)) + (int)(WIDE * 0.25);
     int y = rand() % ((int)(HIGH * 0.75) - (int)(HIGH * 0.25)) + (int)(HIGH * 0.25);
@@ -144,15 +135,44 @@ void randsnake(game_state state)
     if (state->snek == NULL)
     {
         perror("Failed to allocate memory for snek");
-        exit(1);
+        exit(-1);
     }
 
     state->snek->x = x;
     state->snek->y = y;
     state->dir = randdir();
+
+    // without this the first apple won't increase size
+    node tail = malloc(sizeof(struct node));
+    if (tail == NULL)
+    {
+        perror("Failed to allocate memory for tail");
+        exit(-1);
+    }
+
+    switch (state->dir)
+    {
+    case FORE:
+        tail->x = x;
+        tail->y = y + 1;
+        break;
+    case BACK:
+        tail->x = x;
+        tail->y = y - 1;
+        break;
+    case LEFT:
+        tail->x = x + 1;
+        tail->y = y;
+        break;
+    case RITE:
+        tail->x = x - 1;
+        tail->y = y;
+        break;
+    }
+    state->snek->next = tail;
 }
 
-void randapple(game_state state)
+void rand_apple(game_state state)
 {
     int x, y;
     do
@@ -162,6 +182,12 @@ void randapple(game_state state)
     } while (isin(state->snek, x, y));
     state->apple[0] = x;
     state->apple[1] = y;
+}
+
+void start_game(game_state state)
+{
+    init_snake(state);
+    rand_apple(state);
 }
 
 void move(game_state state)
@@ -187,13 +213,23 @@ void move(game_state state)
 
     if (x == 0 || x == WIDE - 1 || y == 0 || y == HIGH - 1 || isin(head->next, x, y))
     {
-        printf("\nGAME OVER\n");
-        exit(0);
+        printf("--------\nGAME OVER\n--------\n");
+        printf("Starting over in 3..");
+        fflush(stdout);
+        sleep(1);
+        printf("2..");
+        fflush(stdout);
+        sleep(1);
+        printf("1..");
+        fflush(stdout);
+        sleep(1);
+        start_game(state);
+        // exit(0);
     }
     else if (x == state->apple[0] && y == state->apple[1])
     {
         state->snek = append_head(state->snek, x, y);
-        randapple(state);
+        rand_apple(state);
     }
     else
     {
@@ -226,11 +262,6 @@ void render(game_state state)
         }
     }
     node current = state->snek;
-    if (current == NULL)
-    {
-        perror("Snek is null");
-        exit(1);
-    }
     while (current != NULL)
     {
         screen[current->y][current->x] = SNEK;
@@ -255,32 +286,18 @@ void *server_loop(void *state)
     {
         move(state);
         render(state);
-        usleep(SPEED); // 0.4 seconds
+        usleep(SPEED);
     }
-}
-
-void init_state(game_state state)
-{
-    randsnake(state);
-    randapple(state);
 }
 
 int main(int argc, char const *argv[])
 {
-    // argc - 1 is number of additional arguments provided
-
-    srand(time(NULL));
-
-    printf("%s, expects (1) arg, %d provided", argv[0], argc - 1);
-    if (argc == 2)
+    if (argc != 2)
     {
-        printf(": \"%s\".\n", argv[1]);
-    }
-    else
-    {
-        printf(".\n");
+        printf("%s, expects (1) arg, %d provided", argv[0], argc - 1);
         return 1;
     }
+    srand(time(NULL));
     char mode;
 
     switch (argv[1][1])
@@ -314,6 +331,7 @@ int main(int argc, char const *argv[])
             exit(-1);
         }
 
+        // change terminal input mode to allow for reading input without needing to press enter (os dependent)
         struct termios original_t, new_t;
         tcgetattr(STDIN_FILENO, &original_t);
         new_t = original_t;
@@ -325,7 +343,7 @@ int main(int argc, char const *argv[])
             int numRead = read(0, buff, SIZE);
             if (numRead > 0)
             {
-                buff[numRead] = '\0'; // Null-terminate the string
+                buff[numRead] = '\0';
                 write(sock, buff, strlen(buff));
                 if (buff[0] == 'q')
                 {
@@ -375,10 +393,13 @@ int main(int argc, char const *argv[])
         if (state == NULL)
         {
             perror("Failed to allocate memory for game state");
-            exit(1);
+            exit(-1);
         }
-        init_state(state);
 
+        start_game(state);
+        
+
+        int lastInput;
         pthread_t tid;
         pthread_create(&tid, NULL, &server_loop, (void *)state);
 
@@ -402,6 +423,7 @@ int main(int argc, char const *argv[])
                 break;
             case REDO:
                 printf("\nRESTART\n");
+                start_game(state);
                 break;
             case QUIT:
                 printf("\nQUIT\n");
