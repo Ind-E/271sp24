@@ -28,6 +28,8 @@ typedef int bool;
 #define WIDE 80
 
 #define SNAK "❦"
+#define EVIL "☠"
+#define SPED "🜛"
 #define SNEK "⯀"
 
 #define REDO 'r'
@@ -38,7 +40,8 @@ typedef int bool;
 #define LEFT 'a'
 #define RITE 'd'
 
-#define SPEED 125000 // in nanoseconds
+#define STARTING_SPEED 150000 // in nanoseconds
+#define QUEUE_SIZE 3          // move queue size
 
 struct sockaddr_in6 address;
 
@@ -55,7 +58,41 @@ struct game_state
     node snek;
     int dir;
     int apple[2];
+    int q[QUEUE_SIZE];
+    int speed;
 };
+
+void enqueue(int *q, int val)
+{
+    int index = QUEUE_SIZE - 1;
+    for (int i = 0; i < QUEUE_SIZE - 1; i++)
+    {
+        if (q[i] == 0)
+        {
+            index = i;
+            break;
+        }
+    }
+    if (index <= QUEUE_SIZE - 1)
+        q[index] = val;
+}
+
+int dequeue(int *q)
+{
+    if (q[0] == 0)
+    {
+        return 0; // Queue is empty
+    }
+
+    q[QUEUE_SIZE - 1] = 0;
+    int val = q[0];
+    for (int i = 0; i < QUEUE_SIZE - 1; i++)
+    {
+        q[i] = q[i + 1];
+    }
+    q[QUEUE_SIZE - 1] = 0;
+    return val;
+}
 
 node append_head(node head, int x, int y)
 {
@@ -188,11 +225,17 @@ void start_game(game_state state)
 {
     init_snake(state);
     rand_apple(state);
+    state->speed = STARTING_SPEED;
 }
 
 void move(game_state state)
 {
     node head = state->snek;
+    int last_move = dequeue(state->q);
+    if (last_move != 0)
+    {
+        state->dir = last_move;
+    }
     switch (state->dir)
     {
     case FORE:
@@ -280,13 +323,14 @@ void render(game_state state)
     printf("\n");
 }
 
-void *server_loop(void *state)
+void *server_loop(void *gstate)
 {
+    game_state state = (game_state)gstate;
     while (TRUE)
     {
         move(state);
         render(state);
-        usleep(SPEED);
+        usleep(state->speed);
     }
 }
 
@@ -345,11 +389,9 @@ int main(int argc, char const *argv[])
             if (numRead > 0)
             {
                 buff[numRead] = '\0';
-                // only write directions that are different from the previous one
-                if (buff[0] != prev)
-                {
-                    write(sock, buff, strlen(buff));
-                }
+
+                write(sock, buff, strlen(buff));
+
                 if (buff[0] == 'q')
                 {
                     tcsetattr(STDIN_FILENO, TCSANOW, &original_t);
@@ -395,6 +437,44 @@ int main(int argc, char const *argv[])
             exit(-1);
         }
 
+        printf(" ________  ________  _______   _______   ________          ________  ________   _______   ___  __       \n");
+        printf("|\\   ____\\|\\   __  \\|\\  ___ \\ |\\  ___ \\ |\\   ___ \\        |\\   ____\\|\\   ___  \\|\\  ___ \\ |\\  \\|\\  \\     \n");
+        printf("\\ \\  \\___|\\ \\  \\|\\  \\ \\   __/|\\ \\   __/|\\ \\  \\_|\\ \\       \\ \\  \\___|\\ \\  \\\\ \\  \\ \\   __/|\\ \\  \\/  /|_   \n");
+        printf(" \\ \\_____  \\ \\   ____\\ \\  \\_|/_\\ \\  \\_|/_\\ \\  \\ \\\\ \\       \\ \\_____  \\ \\  \\\\ \\  \\ \\  \\_|/_\\ \\   ___  \\  \n");
+        printf("  \\|____|\\  \\ \\  \\___|\\ \\  \\_|\\ \\ \\  \\_|\\ \\ \\  \\_\\\\ \\       \\|____|\\  \\ \\  \\\\ \\  \\ \\  \\_|\\ \\ \\  \\\\ \\  \\ \n");
+        printf("    ____\\_\\  \\ \\__\\    \\ \\_______\\ \\_______\\ \\_______\\        ____\\_\\  \\ \\__\\\\ \\__\\ \\_______\\ \\__\\\\ \\__\\\n");
+        printf("   |\\_________\\|__|     \\|_______|\\|_______|\\|_______|       |\\_________\\|__| \\|__|\\|_______|\\|__| \\|__|\n");
+        printf("   \\|_________|                                              \\|_________|                               \n\n");
+
+        printf("Eat ❦ to grow longer\n");
+        printf("Avoid walls and ☠\n");
+        printf("Eat 🜛 to speed up and turn ☠  into ❦\n");
+        printf("Use 'w', 'a', 's', 'd' to move\n");
+        printf("Use 'r' to restart\n");
+        printf("Use 'q' to quit\n\n");
+
+        printf("Press any key to start\n");
+
+        while (TRUE)
+        {
+            char ch;
+            int numRead = read(conx, &ch, 1);
+            if (numRead > 0)
+            {
+                if (ch == 'q')
+                {
+                    printf("\nQUIT\n");
+                    close(conx);
+                    close(sock);
+                    exit(0);
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
         game_state state = malloc(sizeof(struct game_state));
         if (state == NULL)
         {
@@ -404,7 +484,6 @@ int main(int argc, char const *argv[])
 
         start_game(state);
 
-        int lastInput;
         pthread_t tid;
         pthread_create(&tid, NULL, &server_loop, (void *)state);
 
@@ -415,16 +494,20 @@ int main(int argc, char const *argv[])
             switch (ch)
             {
             case FORE:
-                state->dir = FORE;
+                enqueue(state->q, FORE);
+                // state->dir = FORE;
                 break;
             case BACK:
-                state->dir = BACK;
+                enqueue(state->q, BACK);
+                // state->dir = BACK;
                 break;
             case LEFT:
-                state->dir = LEFT;
+                enqueue(state->q, LEFT);
+                // state->dir = LEFT;
                 break;
             case RITE:
-                state->dir = RITE;
+                enqueue(state->q, RITE);
+                // state->dir = RITE;
                 break;
             case REDO:
                 start_game(state);
