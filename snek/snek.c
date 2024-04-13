@@ -214,17 +214,17 @@ void move(game_state state)
     if (x == 0 || x == WIDE - 1 || y == 0 || y == HIGH - 1 || isin(head->next, x, y))
     {
         printf("--------\nGAME OVER\n--------\n");
+        printf("Press 'q' to quit\n\n");
         printf("Starting over in 3..");
         fflush(stdout);
         sleep(1);
         printf("2..");
         fflush(stdout);
         sleep(1);
-        printf("1..");
+        printf("1..\n");
         fflush(stdout);
         sleep(1);
         start_game(state);
-        // exit(0);
     }
     else if (x == state->apple[0] && y == state->apple[1])
     {
@@ -337,6 +337,7 @@ int main(int argc, char const *argv[])
         new_t = original_t;
         new_t.c_lflag &= ~(ICANON | ECHO);
         tcsetattr(STDIN_FILENO, TCSANOW, &new_t);
+        char prev = '\0';
 
         while (TRUE)
         {
@@ -344,7 +345,11 @@ int main(int argc, char const *argv[])
             if (numRead > 0)
             {
                 buff[numRead] = '\0';
-                write(sock, buff, strlen(buff));
+                // only write directions that are different from the previous one
+                if (buff[0] != prev)
+                {
+                    write(sock, buff, strlen(buff));
+                }
                 if (buff[0] == 'q')
                 {
                     tcsetattr(STDIN_FILENO, TCSANOW, &original_t);
@@ -352,6 +357,7 @@ int main(int argc, char const *argv[])
                     printf("\nQUIT\n");
                     exit(0);
                 }
+                prev = buff[0];
             }
         }
     }
@@ -397,7 +403,6 @@ int main(int argc, char const *argv[])
         }
 
         start_game(state);
-        
 
         int lastInput;
         pthread_t tid;
@@ -422,7 +427,6 @@ int main(int argc, char const *argv[])
                 state->dir = RITE;
                 break;
             case REDO:
-                printf("\nRESTART\n");
                 start_game(state);
                 break;
             case QUIT:
@@ -431,7 +435,6 @@ int main(int argc, char const *argv[])
                 close(sock);
                 free(state);
                 exit(0);
-                break;
             }
         }
     }
