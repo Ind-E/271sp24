@@ -221,7 +221,7 @@ void move(game_state state)
         printf("2..");
         fflush(stdout);
         sleep(1);
-        printf("1..\n");
+        printf("1..");
         fflush(stdout);
         sleep(1);
         start_game(state);
