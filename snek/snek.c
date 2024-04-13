@@ -28,9 +28,13 @@ typedef int bool;
 #define WIDE 80
 
 #define SNAK "❦"
-#define EVIL "☠"
+#define SKUL "☠"
 #define SPED "🜛"
 #define SNEK "⯀"
+
+#define FOOD 1
+#define SPEED 2
+#define DEATH 3
 
 #define REDO 'r'
 #define QUIT 'q'
@@ -52,12 +56,19 @@ struct node
     struct node *next;
 };
 
+typedef struct food *food;
+struct food
+{
+    int x, y;
+    int type;
+};
+
 typedef struct game_state *game_state;
 struct game_state
 {
     node snek;
     int dir;
-    int apple[2];
+    food apples[5];
     int q[QUEUE_SIZE];
     int speed;
 };
@@ -110,7 +121,7 @@ node append_head(node head, int x, int y)
 
 void pop_tail(node head)
 {
-    if (head == NULL)
+    if (head == NULL || head->next == NULL)
     {
         return;
     }
@@ -131,7 +142,7 @@ void pop_tail(node head)
     free(current);
 }
 
-int isin(node snek, int x, int y)
+int insnake(node snek, int x, int y)
 {
     node current = snek;
     while (current != NULL)
@@ -141,6 +152,25 @@ int isin(node snek, int x, int y)
             return TRUE;
         }
         current = current->next;
+    }
+    return FALS;
+}
+
+void rand_apple(game_state state, int index);
+
+int infood(game_state state, int x, int y, bool eat)
+{
+    for (int i = 0; i < 5; i++)
+    {
+        if (state->apples[i]->x == x && state->apples[i]->y == y)
+        {
+            int retval = state->apples[i]->type;
+            if (eat)
+            {
+                rand_apple(state, i);
+            }
+            return retval;
+        }
     }
     return FALS;
 }
@@ -209,22 +239,56 @@ void init_snake(game_state state)
     state->snek->next = tail;
 }
 
-void rand_apple(game_state state)
+void rand_apple(game_state state, int index)
 {
     int x, y;
     do
     {
         x = rand() % (WIDE - 2) + 1;
         y = rand() % (HIGH - 2) + 1;
-    } while (isin(state->snek, x, y));
-    state->apple[0] = x;
-    state->apple[1] = y;
+    } while (insnake(state->snek, x, y) || infood(state, x, y, FALS));
+
+    int r;
+    switch (state->apples[index]->type)
+    {
+    case DEATH:
+        r = rand() % 100;
+        if (r < 25)
+        {
+            state->apples[index]->type = FOOD;
+        }
+        break;
+    case FOOD:
+        r = rand() % 100;
+        if (r < 25)
+        {
+            state->apples[index]->type = DEATH;
+        }
+        break;
+    }
+    state->apples[index]->x = x;
+    state->apples[index]->y = y;
 }
 
 void start_game(game_state state)
 {
     init_snake(state);
-    rand_apple(state);
+
+    for (int i = 0; i < 5; i++)
+    {
+        state->apples[i] = malloc(sizeof(struct food));
+        if (state->apples[i] == NULL)
+        {
+            perror("Failed to allocate memory for food");
+            exit(-1);
+        }
+        state->apples[i]->type = FOOD;
+    }
+    state->apples[0]->type = SPEED;
+    for (int i = 0; i < 5; i++)
+    {
+        rand_apple(state, i);
+    }
     state->speed = STARTING_SPEED;
 }
 
@@ -254,7 +318,7 @@ void move(game_state state)
     int x = head->x;
     int y = head->y;
 
-    if (x == 0 || x == WIDE - 1 || y == 0 || y == HIGH - 1 || isin(head->next, x, y))
+    if (x == 0 || x == WIDE - 1 || y == 0 || y == HIGH - 1 || insnake(head->next, x, y))
     {
         printf("--------\nGAME OVER\n--------\n");
         printf("Press 'q' to quit\n\n");
@@ -269,15 +333,36 @@ void move(game_state state)
         sleep(1);
         start_game(state);
     }
-    else if (x == state->apple[0] && y == state->apple[1])
-    {
-        state->snek = append_head(state->snek, x, y);
-        rand_apple(state);
-    }
     else
     {
-        state->snek = append_head(state->snek, x, y);
-        pop_tail(state->snek);
+        int type = infood(state, x, y, TRUE);
+        switch (type)
+        {
+        case FOOD:
+            state->snek = append_head(state->snek, x, y);
+            break;
+        case SPEED:
+            state->snek = append_head(state->snek, x, y);
+            state->speed -= 10000;
+            pop_tail(state->snek);
+            for (int i = 0; i < 5; i++)
+            {
+                if (state->apples[i]->type == DEATH)
+                {
+                    state->apples[i]->type = FOOD;
+                }
+            }
+            break;
+        case DEATH:
+            state->snek = append_head(state->snek, x, y);
+            pop_tail(state->snek);
+            pop_tail(state->snek);
+            break;
+        default:
+            state->snek = append_head(state->snek, x, y);
+            pop_tail(state->snek);
+            break;
+        }
     }
 }
 
@@ -310,7 +395,21 @@ void render(game_state state)
         screen[current->y][current->x] = SNEK;
         current = current->next;
     }
-    screen[state->apple[1]][state->apple[0]] = SNAK;
+
+    for (int i = 0; i < 5; i++)
+    {
+        switch (state->apples[i]->type) {
+            case FOOD:
+                screen[state->apples[i]->y][state->apples[i]->x] = SNAK;
+                break;
+            case SPEED:
+                screen[state->apples[i]->y][state->apples[i]->x] = SPED;
+                break;
+            case DEATH:
+                screen[state->apples[i]->y][state->apples[i]->x] = SKUL;
+                break;
+        }
+    }
 
     for (int i = 0; i < HIGH; i++)
     {
