@@ -93,7 +93,24 @@ int dequeue(int *q) {
     return val;
 }
 
+void print_node(node n) {
+    printf("ptr: %p\n", n);
+    printf("x: %d\n", n->x);
+    printf("y: %d\n", n->y);
+    printf("next: %p\n", n->next);
+}
+
+void print_chain(node n) {
+    node current = n;
+    while (current != NULL) {
+        print_node(current);
+        current = current->next;
+    }
+}
+
 node append_head(node head, int x, int y) {
+    // printf("appending head\n");
+    // print_chain(head);
     node new_head = malloc(sizeof(struct node));
     if (new_head == NULL) {
         perror("Failed to allocate memory for append");
@@ -102,6 +119,8 @@ node append_head(node head, int x, int y) {
     new_head->x = x;
     new_head->y = y;
     new_head->next = head;
+    // printf("head appended\n");
+    // print_chain(new_head);
     return new_head;
 }
 
@@ -208,32 +227,6 @@ void start_game(game_state state) {
     state->snek->next = NULL;
     state->dir = randdir();
 
-    // without this the first apple won't increase size
-    // node tail = malloc(sizeof(struct node));
-    // if (tail == NULL) {
-    //     perror("Failed to allocate memory for tail");
-    //     exit(-1);
-    // }
-    // switch (state->dir) {
-    // case FORE:
-    //     tail->x = x;
-    //     tail->y = y + 1;
-    //     break;
-    // case BACK:
-    //     tail->x = x;
-    //     tail->y = y - 1;
-    //     break;
-    // case LEFT:
-    //     tail->x = x + 1;
-    //     tail->y = y;
-    //     break;
-    // case RITE:
-    //     tail->x = x - 1;
-    //     tail->y = y;
-    //     break;
-    // }
-    // state->snek->next = tail;
-
     for (int i = 0; i < 5; i++) {
         state->apples[i] = malloc(sizeof(struct food));
         if (state->apples[i] == NULL) {
@@ -255,35 +248,35 @@ void move(game_state state) {
     if (last_move != 0) {
         state->dir = last_move;
     }
-    switch (state->dir) {
-    case FORE:
-        head->y--;
-        break;
-    case BACK:
-        head->y++;
-        break;
-    case LEFT:
-        head->x--;
-        break;
-    case RITE:
-        head->x++;
-        break;
-    }
     int x = head->x;
     int y = head->y;
+    switch (state->dir) {
+    case FORE:
+        y--;
+        break;
+    case BACK:
+        y++;
+        break;
+    case LEFT:
+        x--;
+        break;
+    case RITE:
+        x++;
+        break;
+    }
 
     if (x == 0 || x == WIDE - 1 || y == 0 || y == HIGH - 1 || insnake(head->next, x, y)) {
         printf("--------\nGAME OVER\n--------\n");
         printf("Press 'q' to quit\n\n");
         printf("Starting over in 3..");
         fflush(stdout);
-        sleep(1);
+        usleep(750000);
         printf("2..");
         fflush(stdout);
-        sleep(1);
+        usleep(750000);
         printf("1..");
         fflush(stdout);
-        sleep(1);
+        usleep(750000);
         start_game(state);
     } else {
         int type = infood(state, x, y, TRUE);
