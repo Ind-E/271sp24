@@ -6,7 +6,7 @@
 #include <string.h>     // for strlen()
 #include <sys/socket.h> // for socket()
 #include <sys/types.h>
-#include <termios.h> // for terminal input mode
+#include <termios.h> // for terminal input mode (only works on linux afaik)
 #include <time.h>    // for time()
 #include <unistd.h>  // for read()
 
@@ -46,6 +46,7 @@ typedef int bool;
 
 #define STARTING_SPEED 150000 // in nanoseconds
 #define QUEUE_SIZE 3          // move queue size
+#define NUM_APPLES 5
 
 struct sockaddr_in6 address;
 
@@ -62,7 +63,7 @@ typedef struct food {
 typedef struct game_state {
     node snek;
     int dir;
-    food apples[5];
+    food apples[NUM_APPLES];
     int q[QUEUE_SIZE];
     int speed;
 } *game_state;
@@ -109,8 +110,6 @@ void print_chain(node n) {
 }
 
 node append_head(node head, int x, int y) {
-    // printf("appending head\n");
-    // print_chain(head);
     node new_head = malloc(sizeof(struct node));
     if (new_head == NULL) {
         perror("Failed to allocate memory for append");
@@ -119,8 +118,6 @@ node append_head(node head, int x, int y) {
     new_head->x = x;
     new_head->y = y;
     new_head->next = head;
-    // printf("head appended\n");
-    // print_chain(new_head);
     return new_head;
 }
 
@@ -143,7 +140,7 @@ void pop_tail(node head) {
     free(current);
 }
 
-int insnake(node snek, int x, int y) {
+bool insnake(node snek, int x, int y) {
     node current = snek;
     while (current != NULL) {
         if (current->x == x && current->y == y) {
@@ -156,8 +153,8 @@ int insnake(node snek, int x, int y) {
 
 void rand_apple(game_state state, int index);
 
-int infood(game_state state, int x, int y, bool eat) {
-    for (int i = 0; i < 5; i++) {
+bool infood(game_state state, int x, int y, bool eat) {
+    for (int i = 0; i < NUM_APPLES; i++) {
         if (state->apples[i]->x == x && state->apples[i]->y == y) {
             int retval = state->apples[i]->type;
             if (eat) {
@@ -227,19 +224,25 @@ void start_game(game_state state) {
     state->snek->next = NULL;
     state->dir = randdir();
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < NUM_APPLES; i++) {
         state->apples[i] = malloc(sizeof(struct food));
         if (state->apples[i] == NULL) {
             perror("Failed to allocate memory for food");
             exit(-1);
         }
         state->apples[i]->type = FOOD;
+        state->apples[i]->x = 0;
+        state->apples[i]->y = 0;
     }
     state->apples[0]->type = SPEED;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < NUM_APPLES; i++) {
         rand_apple(state, i);
     }
     state->speed = STARTING_SPEED;
+
+    for (int i = 0; i < QUEUE_SIZE; i++) {
+        state->q[i] = 0;
+    }
 }
 
 void move(game_state state) {
@@ -288,7 +291,7 @@ void move(game_state state) {
             state->snek = append_head(state->snek, x, y);
             state->speed = (int)(state->speed * 0.92);
             pop_tail(state->snek);
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < NUM_APPLES; i++) {
                 if (state->apples[i]->type == DEATH) {
                     state->apples[i]->type = FOOD;
                 }
@@ -333,7 +336,7 @@ void render(game_state state) {
         current = current->next;
     }
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < NUM_APPLES; i++) {
         switch (state->apples[i]->type) {
         case FOOD:
             screen[state->apples[i]->y][state->apples[i]->x] = SNAK;
@@ -365,6 +368,19 @@ void *server_loop(void *gstate) {
     }
 }
 
+void free_mem(game_state state) {
+    node current = state->snek;
+    while (current != NULL) {
+        node temp = current;
+        current = current->next;
+        free(temp);
+    }
+    free(current);
+    for (int i = 0; i < NUM_APPLES; i++) {
+        free(state->apples[i]);
+    }
+}
+
 int main(int argc, char const *argv[]) {
     if (argc != 2) {
         printf("%s, expects (1) arg, %d provided", argv[0], argc - 1);
@@ -388,13 +404,15 @@ int main(int argc, char const *argv[]) {
     socklen_t addr_size = sizeof(struct sockaddr_in6);
     address.sin6_family = DOMAIN;
     address.sin6_port = htons(PORT);
+    address.sin6_flowinfo = 0; // valgrind
+    address.sin6_scope_id = 0; // valgrind
     char buff[SIZE];
     memset(buff, 0, SIZE);
 
     if (mode == CLIENT) {
         printf("Starting client...\n");
         inet_pton(DOMAIN, "::1", &address.sin6_addr);
-        if (connect(sock, (const struct sockaddr *)&address, addr_size)) {
+        if (connect(sock, (struct sockaddr *)&address, addr_size)) {
             perror("Client - conect failed.");
             exit(-1);
         }
@@ -494,7 +512,7 @@ int main(int argc, char const *argv[]) {
 
         while (TRUE) {
             char ch;
-            int numRead = read(conx, &ch, 1);
+            read(conx, &ch, 1);
             switch (ch) {
             case FORE:
                 enqueue(state->q, FORE);
@@ -509,15 +527,19 @@ int main(int argc, char const *argv[]) {
                 enqueue(state->q, RITE);
                 break;
             case REDO:
+                free_mem(state);
                 start_game(state);
                 break;
             case QUIT:
                 printf("\nQUIT\n");
                 close(conx);
                 close(sock);
+                free_mem(state);
                 free(state);
                 exit(0);
             }
         }
     }
 }
+
+
