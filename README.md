@@ -2,4 +2,4 @@ CS271sp24
 
 Indi Esneault
 
-Docker Hub image [here](https://hub.docker.com/r/ind3/snek).
+Docker Hub image [here](https://hub.docker.com/repository/docker/ind3/snek/general).
